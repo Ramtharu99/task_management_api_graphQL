@@ -1,0 +1,28 @@
+$kind: http-request
+description: "Filter by completed and/or priority (combined with AND)."
+method: POST
+url: '{{baseUrl}}/graphql'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "query": "query FilterTasks($filter: TaskFilterInput) { tasks(filter: $filter) { id title priority completed } }",
+      "variables": {
+        "filter": {
+          "completed": false,
+          "priority": "HIGH"
+        }
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);
+      pm.test('every task matches the filter', () => json.data.tasks.forEach(t => { pm.expect(t.priority).to.eql('HIGH'); pm.expect(t.completed).to.eql(false); }));

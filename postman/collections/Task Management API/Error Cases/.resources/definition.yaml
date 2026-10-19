@@ -1,0 +1,3 @@
+$kind: collection
+description: "Examples of the API's error responses. Run after Auth so a token exists."
+order: 3000

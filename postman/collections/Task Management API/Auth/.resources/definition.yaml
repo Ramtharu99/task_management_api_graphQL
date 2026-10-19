@@ -1,0 +1,3 @@
+$kind: collection
+description: "Create an account or log in. Both return a JWT that is saved to the `token` variable."
+order: 1000

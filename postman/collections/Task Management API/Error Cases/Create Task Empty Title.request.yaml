@@ -1,0 +1,20 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/graphql'
+order: 4000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "query": "mutation { createTask(input: { title: \"   \" }) { id } }"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('error code is BAD_USER_INPUT', () => pm.expect(json.errors[0].extensions.code).to.eql('BAD_USER_INPUT'));

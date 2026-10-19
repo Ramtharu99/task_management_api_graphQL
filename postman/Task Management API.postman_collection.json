@@ -1,0 +1,874 @@
+{
+  "info": {
+    "_postman_id": "088ce92c-53d9-45dd-abe8-2854a6a741ae",
+    "name": "Task Management API",
+    "description": "GraphQL Task Management API. Every request is a POST to {{baseUrl}}/graphql with a JSON body\ncontaining \"query\" and \"variables\".\n\nFlow: run Auth \u2192 Register (or Login) first. The token is saved to the `token` collection\nvariable and sent automatically as \"Authorization: Bearer {{token}}\" by every task request.\nEach user only sees and manages their own tasks.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "name",
+      "value": "Test User",
+      "type": "string",
+      "description": "Name used by Register."
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string",
+      "description": "Set automatically by Register (a unique address per run). Set it yourself to log in as an existing user."
+    },
+    {
+      "key": "password",
+      "value": "Passw0rd!123",
+      "type": "string",
+      "description": "Password used by Register and Login (test accounts only)."
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "JWT saved by Register/Login."
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "type": "string",
+      "description": "Id of the task created by Create Task."
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Create an account or log in. Both return a JWT that is saved to the `token` variable.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Register($input: RegisterInput!) { register(input: $input) { token user { id name email createdAt } } }",
+                "variables": "{\n  \"input\": {\n    \"name\": \"{{name}}\",\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Creates a new user. The pre-request script generates a unique email so the collection can be re-run."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('returns a token and the user', () => {",
+                  "  pm.expect(json.data.register.token).to.be.a('string');",
+                  "  pm.expect(json.data.register.user.email).to.eql(pm.collectionVariables.get('email'));",
+                  "});",
+                  "if (json.data && json.data.register) pm.collectionVariables.set('token', json.data.register.token);"
+                ]
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Unique email per run so Register never collides with an existing account.",
+                  "pm.collectionVariables.set('email', `user.${Date.now()}@example.com`);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Login($input: LoginInput!) { login(input: $input) { token user { id name email } } }",
+                "variables": "{\n  \"input\": {\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Logs in with {{email}} / {{password}} and saves the returned JWT to `token`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('returns a token', () => pm.expect(json.data.login.token).to.be.a('string'));",
+                  "if (json.data && json.data.login) pm.collectionVariables.set('token', json.data.login.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Me { me { id name email createdAt } }",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Returns the logged-in user (requires the Bearer token)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('returns the current user', () => pm.expect(json.data.me.email).to.eql(pm.collectionVariables.get('email')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "description": "Task operations. All require the Bearer token and only touch the logged-in user's tasks.",
+      "item": [
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation CreateTask($input: CreateTaskInput!) { createTask(input: $input) { id title description completed priority dueDate createdAt updatedAt } }",
+                "variables": "{\n  \"input\": {\n    \"title\": \"Learn GraphQL\",\n    \"description\": \"Build a task management API\",\n    \"priority\": \"HIGH\",\n    \"dueDate\": \"2026-11-01T12:00:00.000Z\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Creates a task. Only title is required; priority defaults to MEDIUM and completed to false. Saves the id to `taskId`."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('task created with defaults', () => {",
+                  "  pm.expect(json.data.createTask.title).to.eql('Learn GraphQL');",
+                  "  pm.expect(json.data.createTask.completed).to.eql(false);",
+                  "});",
+                  "if (json.data && json.data.createTask) pm.collectionVariables.set('taskId', json.data.createTask.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Tasks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Tasks { tasks { id title description completed priority dueDate createdAt updatedAt } }",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "All of your tasks, newest first."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('includes the created task', () => pm.expect(json.data.tasks.map(t => t.id)).to.include(pm.collectionVariables.get('taskId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter Tasks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query FilterTasks($filter: TaskFilterInput) { tasks(filter: $filter) { id title priority completed } }",
+                "variables": "{\n  \"filter\": {\n    \"completed\": false,\n    \"priority\": \"HIGH\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Filter by completed and/or priority (combined with AND)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('every task matches the filter', () => json.data.tasks.forEach(t => { pm.expect(t.priority).to.eql('HIGH'); pm.expect(t.completed).to.eql(false); }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Task By ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Task($id: ID!) { task(id: $id) { id title description completed priority dueDate } }",
+                "variables": "{\n  \"id\": \"{{taskId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('returns the requested task', () => pm.expect(json.data.task.id).to.eql(pm.collectionVariables.get('taskId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search Tasks",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Search($search: String!) { searchTasks(search: $search) { id title priority } }",
+                "variables": "{\n  \"search\": \"graphql\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Case-insensitive partial match on the title. An empty string returns all your tasks."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('finds the task by partial title', () => pm.expect(json.data.searchTasks.map(t => t.id)).to.include(pm.collectionVariables.get('taskId')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) { updateTask(id: $id, input: $input) { id title description priority completed dueDate updatedAt } }",
+                "variables": "{\n  \"id\": \"{{taskId}}\",\n  \"input\": {\n    \"title\": \"Finish GraphQL project\",\n    \"priority\": \"MEDIUM\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Only the fields you send are changed. Send null to clear description or dueDate."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('updated fields changed, others kept', () => {",
+                  "  const t = json.data.updateTask;",
+                  "  pm.expect(t.title).to.eql('Finish GraphQL project');",
+                  "  pm.expect(t.priority).to.eql('MEDIUM');",
+                  "  pm.expect(t.description).to.eql('Build a task management API');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Complete Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation CompleteTask($id: ID!) { completeTask(id: $id) { id title completed } }",
+                "variables": "{\n  \"id\": \"{{taskId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('task is completed', () => pm.expect(json.data.completeTask.completed).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Task Statistics",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Stats { taskStatistics { totalTasks completedTasks pendingTasks tasksByPriority { priority count } } }",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "Counts for the logged-in user's tasks."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('statistics are consistent', () => {",
+                  "  const s = json.data.taskStatistics;",
+                  "  pm.expect(s.pendingTasks).to.eql(s.totalTasks - s.completedTasks);",
+                  "  pm.expect(s.tasksByPriority.reduce((n, p) => n + p.count, 0)).to.eql(s.totalTasks);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation DeleteTask($id: ID!) { deleteTask(id: $id) { success message id } }",
+                "variables": "{\n  \"id\": \"{{taskId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);",
+                  "pm.test('task deleted', () => pm.expect(json.data.deleteTask.success).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error Cases",
+      "description": "Examples of the API's error responses. Run after Auth so a token exists.",
+      "item": [
+        {
+          "name": "Tasks Without Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query { tasks { id } }",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "No Authorization header \u2192 UNAUTHENTICATED."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('error code is UNAUTHENTICATED', () => pm.expect(json.errors[0].extensions.code).to.eql('UNAUTHENTICATED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login Wrong Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Login($input: LoginInput!) { login(input: $input) { token user { id name email } } }",
+                "variables": "{\n  \"input\": {\n    \"email\": \"{{email}}\",\n    \"password\": \"wrong-password\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('error code is UNAUTHENTICATED', () => pm.expect(json.errors[0].extensions.code).to.eql('UNAUTHENTICATED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Duplicate Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation Register($input: RegisterInput!) { register(input: $input) { token user { id name email createdAt } } }",
+                "variables": "{\n  \"input\": {\n    \"name\": \"{{name}}\",\n    \"email\": \"{{email}}\",\n    \"password\": \"{{password}}\"\n  }\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('error code is BAD_USER_INPUT', () => pm.expect(json.errors[0].extensions.code).to.eql('BAD_USER_INPUT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Task Empty Title",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation { createTask(input: { title: \"   \" }) { id } }",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('error code is BAD_USER_INPUT', () => pm.expect(json.errors[0].extensions.code).to.eql('BAD_USER_INPUT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Task Invalid Date",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "mutation { createTask(input: { title: \"Bad date\", dueDate: \"2026-02-31\" }) { id } }",
+                "variables": "{}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('error code is BAD_USER_INPUT', () => pm.expect(json.errors[0].extensions.code).to.eql('BAD_USER_INPUT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Deleted Task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "graphql",
+              "graphql": {
+                "query": "query Task($id: ID!) { task(id: $id) { id } }",
+                "variables": "{\n  \"id\": \"{{taskId}}\"\n}"
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/graphql",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "graphql"
+              ]
+            },
+            "description": "The task was deleted by Tasks \u2192 Delete Task \u2192 NOT_FOUND."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status 200', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('error code is NOT_FOUND', () => pm.expect(json.errors[0].extensions.code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

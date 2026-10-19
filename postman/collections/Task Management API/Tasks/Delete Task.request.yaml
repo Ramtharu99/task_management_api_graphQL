@@ -1,0 +1,24 @@
+$kind: http-request
+method: POST
+url: '{{baseUrl}}/graphql'
+order: 9000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "query": "mutation DeleteTask($id: ID!) { deleteTask(id: $id) { success message id } }",
+      "variables": {
+        "id": "{{taskId}}"
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);
+      pm.test('task deleted', () => pm.expect(json.data.deleteTask.success).to.eql(true));

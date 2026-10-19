@@ -1,0 +1,40 @@
+$kind: http-request
+description: "Creates a new user. The pre-request script generates a unique email so the collection can be re-run."
+method: POST
+url: '{{baseUrl}}/graphql'
+order: 1000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "query": "mutation Register($input: RegisterInput!) { register(input: $input) { token user { id name email createdAt } } }",
+      "variables": {
+        "input": {
+          "name": "{{name}}",
+          "email": "{{email}}",
+          "password": "{{password}}"
+        }
+      }
+    }
+auth:
+  type: noauth
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);
+      pm.test('returns a token and the user', () => {
+        pm.expect(json.data.register.token).to.be.a('string');
+        pm.expect(json.data.register.user.email).to.eql(pm.collectionVariables.get('email'));
+      });
+      if (json.data && json.data.register) pm.collectionVariables.set('token', json.data.register.token);
+  - type: beforeRequest
+    language: text/javascript
+    code: |-
+      // Unique email per run so Register never collides with an existing account.
+      pm.collectionVariables.set('email', `user.${Date.now()}@example.com`);

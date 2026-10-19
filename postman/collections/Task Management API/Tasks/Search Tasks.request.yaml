@@ -1,0 +1,25 @@
+$kind: http-request
+description: "Case-insensitive partial match on the title. An empty string returns all your tasks."
+method: POST
+url: '{{baseUrl}}/graphql'
+order: 5000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "query": "query Search($search: String!) { searchTasks(search: $search) { id title priority } }",
+      "variables": {
+        "search": "graphql"
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);
+      pm.test('finds the task by partial title', () => pm.expect(json.data.searchTasks.map(t => t.id)).to.include(pm.collectionVariables.get('taskId')));

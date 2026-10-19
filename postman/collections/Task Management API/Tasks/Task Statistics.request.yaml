@@ -1,0 +1,26 @@
+$kind: http-request
+description: "Counts for the logged-in user's tasks."
+method: POST
+url: '{{baseUrl}}/graphql'
+order: 8000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "query": "query Stats { taskStatistics { totalTasks completedTasks pendingTasks tasksByPriority { priority count } } }"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);
+      pm.test('statistics are consistent', () => {
+        const s = json.data.taskStatistics;
+        pm.expect(s.pendingTasks).to.eql(s.totalTasks - s.completedTasks);
+        pm.expect(s.tasksByPriority.reduce((n, p) => n + p.count, 0)).to.eql(s.totalTasks);
+      });

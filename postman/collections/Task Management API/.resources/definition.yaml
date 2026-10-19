@@ -1,0 +1,30 @@
+$kind: collection
+name: Task Management API
+description: |-
+  GraphQL Task Management API. Every request is a POST to {{baseUrl}}/graphql with a JSON body
+  containing "query" and "variables".
+
+  Flow: run Auth → Register (or Login) first. The token is saved to the `token` collection
+  variable and sent automatically as "Authorization: Bearer {{token}}" by every task request.
+  Each user only sees and manages their own tasks.
+auth:
+  type: bearer
+  credentials:
+    - key: token
+      value: '{{token}}'
+variables:
+  - key: name
+    value: Test User
+    description: Name used by Register.
+  - key: email
+    value: ''
+    description: Set automatically by Register (a unique address per run). Set it yourself to log in as an existing user.
+  - key: password
+    value: Passw0rd!123
+    description: Password used by Register and Login (test accounts only).
+  - key: token
+    value: ''
+    description: JWT saved by Register/Login.
+  - key: taskId
+    value: ''
+    description: Id of the task created by Create Task.

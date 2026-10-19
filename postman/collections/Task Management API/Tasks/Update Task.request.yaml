@@ -1,0 +1,34 @@
+$kind: http-request
+description: "Only the fields you send are changed. Send null to clear description or dueDate."
+method: POST
+url: '{{baseUrl}}/graphql'
+order: 6000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "query": "mutation UpdateTask($id: ID!, $input: UpdateTaskInput!) { updateTask(id: $id, input: $input) { id title description priority completed dueDate updatedAt } }",
+      "variables": {
+        "id": "{{taskId}}",
+        "input": {
+          "title": "Finish GraphQL project",
+          "priority": "MEDIUM"
+        }
+      }
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);
+      pm.test('updated fields changed, others kept', () => {
+        const t = json.data.updateTask;
+        pm.expect(t.title).to.eql('Finish GraphQL project');
+        pm.expect(t.priority).to.eql('MEDIUM');
+        pm.expect(t.description).to.eql('Build a task management API');
+      });

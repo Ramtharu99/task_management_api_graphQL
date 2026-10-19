@@ -1,0 +1,22 @@
+$kind: http-request
+description: "Returns the logged-in user (requires the Bearer token)."
+method: POST
+url: '{{baseUrl}}/graphql'
+order: 3000
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "query": "query Me { me { id name email createdAt } }"
+    }
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |-
+      pm.test('status 200', () => pm.response.to.have.status(200));
+      const json = pm.response.json();
+      pm.test('no GraphQL errors', () => pm.expect(json.errors, JSON.stringify(json.errors)).to.be.undefined);
+      pm.test('returns the current user', () => pm.expect(json.data.me.email).to.eql(pm.collectionVariables.get('email')));

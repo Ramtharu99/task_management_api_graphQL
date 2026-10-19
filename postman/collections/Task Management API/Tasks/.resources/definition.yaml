@@ -1,0 +1,3 @@
+$kind: collection
+description: "Task operations. All require the Bearer token and only touch the logged-in user's tasks."
+order: 2000
